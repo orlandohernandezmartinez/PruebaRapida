@@ -13,52 +13,45 @@ app = Flask(__name__)
 openai.api_key = os.getenv("OPENAI_API_KEY")
 elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
 
-conversation_history = []
+# Inicializa el historial con el prompt del sistema
+conversation_history = [
+    {
+        "role": "system",
+        "content": (
+            "Eres AVA, la primer agente virtual de la Secretaría de Agricultura y Desarrollo Rural "
+            "especializado en la agroindustria y el desarrollo rural del estado de Puebla. Tu misión "
+            "es responder de manera clara, confiable y oportuna las preguntas de las y los usuarios "
+            "que buscan información sobre producción agrícola, pecuaria y pesquera, así como sobre "
+            "indicadores económicos, sociales y geográficos del estado de Puebla."
+        )
+    }
+]
 
 @app.route("/ping", methods=["GET"])
 def ping():
-    """Endpoint de prueba para verificar que la app responde sin usar OpenAI/ElevenLabs."""
     print("🔎 /ping endpoint reached!")
     return jsonify({"message": "pong"}), 200
 
 def generate_gpt_response(history):
     print("🌀 Entrando a generate_gpt_response...")
-    # Construye el prompt concatenando el historial
-    prompt = ""
-    for message in history:
-        role = message["role"]
-        content = message["content"]
-        if role == "system":
-            prompt += f"System: {content}\n"
-        elif role == "user":
-            prompt += f"User: {content}\n"
-        elif role == "assistant":
-            prompt += f"Assistant: {content}\n"
-    # Indica que el asistente debe responder
-    prompt += "Assistant: "
-    print(f"🌀 Prompt enviado a Completion: {prompt}")
-
     try:
-        print("🌀 Llamando a openai.Completion.create...")
-        response = openai.Completion.create(
-            engine="text-davinci-003",  # Puedes ajustar el modelo según tus necesidades
-            prompt=prompt,
-            max_tokens=150,
-            temperature=0.7,
-            n=1,
-            stop=["User:", "Assistant:"]
+        # Usamos la nueva interfaz ChatCompletion
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=history
         )
-        full_response = response.choices[0].text.strip()
+        # En la nueva versión, el contenido viene en response.choices[0].message["content"]
+        full_response = response.choices[0].message["content"].strip()
         print(f"🌀 Respuesta GPT: {full_response}")
         return full_response
     except Exception as e:
         print(f"❌ Error en generate_gpt_response: {e}")
-        raise e  # Propagamos el error para que se capture en el endpoint
+        raise e
 
 def eleven_labs_text_to_speech(text):
     print("🎤 Entrando a eleven_labs_text_to_speech...")
     voice_id = "5foAkxpX0K5wizIaF5vu"
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
+    tts_url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
 
     headers = {
         "Accept": "application/json",
@@ -76,7 +69,7 @@ def eleven_labs_text_to_speech(text):
 
     print("🎤 Realizando POST a ElevenLabs...")
     try:
-        resp = requests.post(url, headers=headers, json=data, stream=True, timeout=30)
+        resp = requests.post(tts_url, headers=headers, json=data, stream=True, timeout=30)
         print(f"🎤 Respuesta de ElevenLabs: status_code={resp.status_code}")
 
         if resp.status_code == 200:
