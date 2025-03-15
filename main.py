@@ -23,28 +23,32 @@ def ping():
 
 def generate_gpt_response(history):
     print("🌀 Entrando a generate_gpt_response...")
-    system_prompt = {
-        "role": "system",
-        "content": (
-            "Eres AVA, la primer agente virtual de la Secretaría de Agricultura y Desarrollo Rural "
-            "especializado en la agroindustria y el desarrollo rural del estado de Puebla. Tu misión "
-            "es responder de manera clara, confiable y oportuna las preguntas de las y los usuarios "
-            "que buscan información sobre producción agrícola, pecuaria y pesquera, así como sobre "
-            "indicadores económicos, sociales y geográficos del estado de Puebla."
-        )
-    }
-
-    messages = [system_prompt] + history[-10:]
-    print(f"🌀 Mensajes enviados a ChatCompletion: {messages}")
+    # Construye el prompt concatenando el historial
+    prompt = ""
+    for message in history:
+        role = message["role"]
+        content = message["content"]
+        if role == "system":
+            prompt += f"System: {content}\n"
+        elif role == "user":
+            prompt += f"User: {content}\n"
+        elif role == "assistant":
+            prompt += f"Assistant: {content}\n"
+    # Indica que el asistente debe responder
+    prompt += "Assistant: "
+    print(f"🌀 Prompt enviado a Completion: {prompt}")
 
     try:
-        print("🌀 Llamando a openai.ChatCompletion.create...")
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=messages
+        print("🌀 Llamando a openai.Completion.create...")
+        response = openai.Completion.create(
+            engine="text-davinci-003",  # Puedes ajustar el modelo según tus necesidades
+            prompt=prompt,
+            max_tokens=150,
+            temperature=0.7,
+            n=1,
+            stop=["User:", "Assistant:"]
         )
-        print("🌀 Respuesta recibida de OpenAI.")
-        full_response = response.choices[0].message.content
+        full_response = response.choices[0].text.strip()
         print(f"🌀 Respuesta GPT: {full_response}")
         return full_response
     except Exception as e:
